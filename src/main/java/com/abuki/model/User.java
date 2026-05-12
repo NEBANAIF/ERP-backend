@@ -1,5 +1,6 @@
 package com.abuki.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -18,7 +19,8 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String password; // BCrypt hashed
+    @JsonProperty(access = JsonProperty.Access.WRITE_ONLY)
+    private String password; // BCrypt hashed — accepted on create/update, never returned
 
     // ADMIN | MANAGER | CASHIER | VIEWER
     @Column(nullable = false)

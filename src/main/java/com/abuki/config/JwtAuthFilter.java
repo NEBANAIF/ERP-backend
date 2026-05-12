@@ -27,11 +27,23 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                                     FilterChain chain)
             throws ServletException, IOException {
 
+        String uri = request.getRequestURI();
+        boolean publicAuth = uri.startsWith("/api/auth/");
+
         String authHeader = request.getHeader("Authorization");
 
-        if (authHeader != null && authHeader.startsWith("Bearer ")) {
-            String token = authHeader.substring(7);
+        if (!publicAuth && authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7).trim();
+            if (!token.isEmpty() && !jwtService.isValid(token)) {
+                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"error\":\"Invalid or expired token\"}");
+                return;
+            }
+        }
 
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            String token = authHeader.substring(7).trim();
             if (jwtService.isValid(token)) {
                 String email = jwtService.extractEmail(token);
                 String role  = jwtService.extractRole(token);

@@ -109,7 +109,8 @@ public class ProductService {
     // ── ADJUST STOCK (add or subtract) ───────────────────
     @Transactional
     public Product adjustStock(Long id, int change, String reason, String user) {
-        Product p = getById(id);
+        Product p = productRepo.findByIdForUpdate(id)
+            .orElseThrow(() -> new RuntimeException("Product not found: " + id));
 
         int before = p.getStock();
         int after  = before + change;

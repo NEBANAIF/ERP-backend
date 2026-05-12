@@ -2,6 +2,7 @@ package com.abuki.service;
 
 import com.abuki.model.Product;
 import com.abuki.model.Sale;
+import com.abuki.audit.AuditService;
 import com.abuki.repository.ProductRepository;
 import com.abuki.repository.SaleRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,6 +17,7 @@ public class SaleService {
     @Autowired private SaleRepository    saleRepo;
     @Autowired private ProductRepository productRepo;
     @Autowired private ProductService    productService;
+    @Autowired private AuditService      auditService;
 
     // ── READ ALL ─────────────────────────────────────────
     @Transactional(readOnly = true)
@@ -33,8 +35,7 @@ public class SaleService {
     // ── CREATE (record sale) ─────────────────────────────
     @Transactional
     public Sale recordSale(Sale req) {
-        // Load product fresh from DB
-        Product product = productRepo.findById(req.getProduct().getId())
+        Product product = productRepo.findByIdForUpdate(req.getProduct().getId())
             .orElseThrow(() -> new RuntimeException(
                 "Product not found: " + req.getProduct().getId()));
 
@@ -81,6 +82,9 @@ public class SaleService {
             "SALE-" + saved.getId()
         );
 
+        auditService.record("SALE_RECORDED", "Sale", String.valueOf(saved.getId()),
+            "product=" + product.getId() + " qty=" + req.getQuantity() + " total=" + saved.getTotal());
+
         return saved;
     }
 
@@ -91,7 +95,8 @@ public class SaleService {
         Sale sale = saleRepo.findById(id)
             .orElseThrow(() -> new RuntimeException("Sale not found: " + id));
 
-        Product product = sale.getProduct();
+        Product product = productRepo.findByIdForUpdate(sale.getProduct().getId())
+            .orElseThrow(() -> new RuntimeException("Product not found: " + sale.getProduct().getId()));
 
         // Restore stock
         int before = product.getStock();
@@ -112,5 +117,8 @@ public class SaleService {
         // Hard delete sale — flush immediately
         saleRepo.deleteById(id);
         saleRepo.flush();
+
+        auditService.record("SALE_DELETED", "Sale", String.valueOf(id),
+            "product=" + product.getId() + " restoredQty=" + sale.getQuantity());
     }
 }
